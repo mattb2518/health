@@ -1051,67 +1051,124 @@
                 const importedData = {};
                 let importCount = 0;
 
-                // Skip header row, start from row 4 (index 3) as requested
-                for (let i = 3; i < lines.length; i++) {
+                // Find the header row to understand column structure
+                let headerRowIndex = -1;
+                for (let i = 0; i < Math.min(5, lines.length); i++) {
+                    if (lines[i].includes('Date') || lines[i].includes('BCR')) {
+                        headerRowIndex = i;
+                        break;
+                    }
+                }
+
+                console.log('Header row found at index:', headerRowIndex);
+                console.log('Processing data rows...');
+
+                // Process data rows (start after header)
+                for (let i = headerRowIndex + 1; i < lines.length; i++) {
                     const line = lines[i].trim();
                     if (!line) continue;
 
                     const cols = parseCSVLine(line);
-                    if (cols.length < 18) continue; // Need at least 18 columns
+                    console.log(`Row ${i}: ${cols.length} columns`, cols.slice(0, 10)); // Debug first 10 columns
 
-                    const dateStr = cols[0];
-                    if (!dateStr || !isValidDate(dateStr)) continue;
+                    if (cols.length < 20) continue; // Need enough columns
+
+                    // Try to find the date - it might be in column 0 or 1
+                    let dateStr = '';
+                    let dateCol = -1;
+                    
+                    // Check first few columns for a valid date
+                    for (let j = 0; j < Math.min(3, cols.length); j++) {
+                        if (cols[j] && (cols[j].includes('/') || cols[j].includes('-'))) {
+                            dateStr = cols[j];
+                            dateCol = j;
+                            break;
+                        }
+                    }
+
+                    // If still no date found, try looking for patterns
+                    if (!dateStr) {
+                        for (let j = 0; j < Math.min(5, cols.length); j++) {
+                            const col = cols[j];
+                            if (col && col.length > 0 && isValidDate(col)) {
+                                dateStr = col;
+                                dateCol = j;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!dateStr || !isValidDate(dateStr)) {
+                        console.log(`Row ${i}: No valid date found in first few columns`);
+                        continue;
+                    }
 
                     const date = formatDate(dateStr);
+                    console.log(`Row ${i}: Found date ${dateStr} -> ${date}`);
+
+                    // Based on your format, map the columns:
+                    // Date, BCR, LCR, SCR, DCR, NSc, <=2, Tot, Wk, Z2, VO2, Str, Sta, Grp, Sleep, BLC, LLC, SLC, DLC, Tot, Wk, Wt...
+                    const dataStartCol = dateCol + 1;
                     
+                    const foodIntakeData = {
+                        breakfast: parseInt(cols[dataStartCol]) || 0,     // BCR
+                        lunch: parseInt(cols[dataStartCol + 1]) || 0,     // LCR  
+                        snack: parseInt(cols[dataStartCol + 2]) || 0,     // SCR
+                        dinner: parseInt(cols[dataStartCol + 3]) || 0     // DCR
+                    };
+
+                    const habitsData = {
+                        scavenging: parseInt(cols[dataStartCol + 4]) || 0, // NSc
+                        drinks: parseInt(cols[dataStartCol + 5]) || 0,     // <=2
+                        sleep: parseInt(cols[dataStartCol + 13]) || 0      // Sleep column
+                    };
+
+                    const exerciseData = {
+                        zone2: parseInt(cols[dataStartCol + 8]) || 0,      // Z2
+                        vo2max: parseInt(cols[dataStartCol + 9]) || 0,     // VO2
+                        strength: parseInt(cols[dataStartCol + 10]) || 0,  // Str
+                        stability: parseInt(cols[dataStartCol + 11]) || 0, // Sta
+                        grip: parseInt(cols[dataStartCol + 12]) || 0       // Grp
+                    };
+
+                    const foodQualityData = {
+                        breakfast: parseInt(cols[dataStartCol + 14]) || 0, // BLC
+                        lunch: parseInt(cols[dataStartCol + 15]) || 0,     // LLC
+                        snack: parseInt(cols[dataStartCol + 16]) || 0,     // SLC
+                        dinner: parseInt(cols[dataStartCol + 17]) || 0     // DLC
+                    };
+
+                    const weight = cols[dataStartCol + 20] || ''; // Wt column
+
                     const data = {
                         date: date,
-                        foodIntake: {
-                            breakfast: parseInt(cols[1]) || 0,
-                            lunch: parseInt(cols[2]) || 0,
-                            snack: parseInt(cols[3]) || 0,
-                            dinner: parseInt(cols[4]) || 0
-                        },
-                        foodQuality: {
-                            breakfast: parseInt(cols[5]) || 0,
-                            lunch: parseInt(cols[6]) || 0,
-                            snack: parseInt(cols[7]) || 0,
-                            dinner: parseInt(cols[8]) || 0
-                        },
-                        habits: {
-                            drinks: parseInt(cols[9]) || 0,
-                            scavenging: parseInt(cols[10]) || 0,
-                            sleep: parseInt(cols[11]) || 0
-                        },
-                        exercise: {
-                            zone2: parseInt(cols[12]) || 0,
-                            vo2max: parseInt(cols[13]) || 0,
-                            strength: parseInt(cols[14]) || 0,
-                            stability: parseInt(cols[15]) || 0,
-                            grip: parseInt(cols[16]) || 0
-                        },
-                        weight: cols[17] || '',
+                        foodIntake: foodIntakeData,
+                        foodQuality: foodQualityData,
+                        habits: habitsData,
+                        exercise: exerciseData,
+                        weight: weight,
                         logs: {
-                            exercise: '',
+                            exercise: cols[dataStartCol + 22] || '',        // Exercise column
                             meals: {
-                                breakfast: '',
-                                lunch: '',
-                                snack: '',
-                                dinner: '',
-                                drinks: ''
+                                breakfast: cols[dataStartCol + 23] || '',    // Breakfast column
+                                lunch: cols[dataStartCol + 24] || '',        // Lunch column
+                                snack: cols[dataStartCol + 25] || '',        // Snack column
+                                dinner: cols[dataStartCol + 26] || '',       // Dinner column
+                                drinks: cols[dataStartCol + 27] || ''        // Drinks column
                             }
                         },
                         scores: {
-                            intake: calculateScore([data.foodIntake.breakfast, data.foodIntake.lunch, data.foodIntake.snack, data.foodIntake.dinner]),
-                            quality: calculateScore([data.foodQuality.breakfast, data.foodQuality.lunch, data.foodQuality.snack, data.foodQuality.dinner]),
-                            habits: calculateScore([data.habits.drinks, data.habits.scavenging, data.habits.sleep]),
-                            exercise: calculateScore([data.exercise.zone2, data.exercise.vo2max, data.exercise.strength, data.exercise.stability, data.exercise.grip]),
+                            intake: calculateScore([foodIntakeData.breakfast, foodIntakeData.lunch, foodIntakeData.snack, foodIntakeData.dinner]),
+                            quality: calculateScore([foodQualityData.breakfast, foodQualityData.lunch, foodQualityData.snack, foodQualityData.dinner]),
+                            habits: calculateScore([habitsData.drinks, habitsData.scavenging, habitsData.sleep]),
+                            exercise: calculateScore([exerciseData.zone2, exerciseData.vo2max, exerciseData.strength, exerciseData.stability, exerciseData.grip]),
                             total: '-'
                         }
                     };
 
                     importedData[date] = data;
                     importCount++;
+                    console.log(`Successfully processed row ${i} for date ${date}`);
                 }
 
                 // Merge with existing data
