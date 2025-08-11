@@ -231,19 +231,19 @@
         }
 
         .score-card {
-            padding: 15px;
+            padding: 12px;
             border-radius: 8px;
             text-align: center;
         }
 
         .score-card h4 {
             margin-bottom: 5px;
-            font-size: 14px;
+            font-size: 12px;
             opacity: 0.8;
         }
 
         .score-card .score {
-            font-size: 24px;
+            font-size: 18px;
             font-weight: bold;
         }
 
@@ -374,12 +374,14 @@
             <button class="nav-tab active" onclick="showTab('daily')">Daily Input</button>
             <button class="nav-tab" onclick="showTab('import')">Import Data</button>
             <button class="nav-tab" onclick="showTab('sheets')">Google Sheets</button>
-            <button class="nav-tab" onclick="showTab('progress')">Progress</button>
+            <button class="nav-tab" onclick="showTab('history')">History</button>
+            <button class="nav-tab" onclick="showTab('weight')">Weight Chart</button>
         </div>
 
         <!-- Daily Input Tab -->
         <div id="daily" class="tab-content active">
             <div class="section">
+                <h4 style="margin-bottom: 10px; color: #6c757d;">Today's Scores</h4>
                 <div class="score-summary">
                     <div class="score-card label-1">
                         <h4>Food Intake</h4>
@@ -400,6 +402,30 @@
                     <div class="score-card label-1">
                         <h4>Daily Average</h4>
                         <div class="score" id="totalScore">-</div>
+                    </div>
+                </div>
+                
+                <h4 style="margin-bottom: 10px; margin-top: 20px; color: #6c757d;">This Week's Averages</h4>
+                <div class="score-summary">
+                    <div class="score-card label-1">
+                        <h4>Food Intake</h4>
+                        <div class="score" id="weekIntakeScore">-</div>
+                    </div>
+                    <div class="score-card label-1">
+                        <h4>Food Quality</h4>
+                        <div class="score" id="weekQualityScore">-</div>
+                    </div>
+                    <div class="score-card label-1">
+                        <h4>Habits</h4>
+                        <div class="score" id="weekHabitsScore">-</div>
+                    </div>
+                    <div class="score-card label-1">
+                        <h4>Exercise</h4>
+                        <div class="score" id="weekExerciseScore">-</div>
+                    </div>
+                    <div class="score-card label-1">
+                        <h4>Week Average</h4>
+                        <div class="score" id="weekTotalScore">-</div>
                     </div>
                 </div>
             </div>
@@ -698,12 +724,25 @@
             </div>
         </div>
 
-        <!-- Progress Tab -->
-        <div id="progress" class="tab-content">
+        <!-- History Tab -->
+        <div id="history" class="tab-content">
             <div class="section">
-                <h3 class="section-title">Progress Dashboard</h3>
-                <div id="progressContent">
-                    <p>Progress tracking will be displayed here once you have some data.</p>
+                <h3 class="section-title">Weekly History</h3>
+                <div id="historyContent">
+                    <p>Loading historical data...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Weight Chart Tab -->
+        <div id="weight" class="tab-content">
+            <div class="section">
+                <h3 class="section-title">Weight Over Time</h3>
+                <div id="weightChartContainer" style="width: 100%; height: 400px; margin: 20px 0;">
+                    <canvas id="weightChart"></canvas>
+                </div>
+                <div id="weightStats" style="margin-top: 20px;">
+                    <p>Loading weight data...</p>
                 </div>
             </div>
         </div>
@@ -818,6 +857,9 @@
             updateScoreDisplay('habitsScore', habitsScore);
             updateScoreDisplay('exerciseScore', exerciseScore);
             updateScoreDisplay('totalScore', totalScore);
+
+            // Update weekly scores
+            updateWeeklyScores();
         }
 
         function calculateCategoryScore(fields) {
@@ -865,6 +907,13 @@
             // Show selected tab
             document.getElementById(tabName).classList.add('active');
             event.target.classList.add('active');
+
+            // Load tab-specific content
+            if (tabName === 'history') {
+                loadHistoryData();
+            } else if (tabName === 'weight') {
+                loadWeightChart();
+            }
         }
 
         function saveData() {
@@ -983,6 +1032,9 @@
 
                 updateScore();
             }
+
+            // Always update weekly scores when loading data
+            updateWeeklyScores();
         }
 
         function exportData() {
@@ -1222,6 +1274,70 @@
             return Math.round((total / values.length) * 100) + '%';
         }
 
+        // Weekly Score Functions
+        function updateWeeklyScores() {
+            const allData = JSON.parse(localStorage.getItem('healthTrackerData') || '{}');
+            const thisWeekData = getThisWeekData(allData);
+
+            if (thisWeekData.length === 0) {
+                // No data for this week
+                updateScoreDisplay('weekIntakeScore', null);
+                updateScoreDisplay('weekQualityScore', null);
+                updateScoreDisplay('weekHabitsScore', null);
+                updateScoreDisplay('weekExerciseScore', null);
+                updateScoreDisplay('weekTotalScore', null);
+                return;
+            }
+
+            // Calculate weekly averages
+            const weeklyScores = {
+                intake: [],
+                quality: [],
+                habits: [],
+                exercise: []
+            };
+
+            thisWeekData.forEach(dayData => {
+                if (dayData.scores.intake !== '-') weeklyScores.intake.push(parseFloat(dayData.scores.intake));
+                if (dayData.scores.quality !== '-') weeklyScores.quality.push(parseFloat(dayData.scores.quality));
+                if (dayData.scores.habits !== '-') weeklyScores.habits.push(parseFloat(dayData.scores.habits));
+                if (dayData.scores.exercise !== '-') weeklyScores.exercise.push(parseFloat(dayData.scores.exercise));
+            });
+
+            const weekIntakeAvg = weeklyScores.intake.length > 0 ? Math.round(weeklyScores.intake.reduce((a, b) => a + b) / weeklyScores.intake.length) : null;
+            const weekQualityAvg = weeklyScores.quality.length > 0 ? Math.round(weeklyScores.quality.reduce((a, b) => a + b) / weeklyScores.quality.length) : null;
+            const weekHabitsAvg = weeklyScores.habits.length > 0 ? Math.round(weeklyScores.habits.reduce((a, b) => a + b) / weeklyScores.habits.length) : null;
+            const weekExerciseAvg = weeklyScores.exercise.length > 0 ? Math.round(weeklyScores.exercise.reduce((a, b) => a + b) / weeklyScores.exercise.length) : null;
+
+            const validScores = [weekIntakeAvg, weekQualityAvg, weekHabitsAvg, weekExerciseAvg].filter(s => s !== null);
+            const weekTotalAvg = validScores.length > 0 ? Math.round(validScores.reduce((a, b) => a + b) / validScores.length) : null;
+
+            // Update display
+            updateScoreDisplay('weekIntakeScore', weekIntakeAvg);
+            updateScoreDisplay('weekQualityScore', weekQualityAvg);
+            updateScoreDisplay('weekHabitsScore', weekHabitsAvg);
+            updateScoreDisplay('weekExerciseScore', weekExerciseAvg);
+            updateScoreDisplay('weekTotalScore', weekTotalAvg);
+        }
+
+        function getThisWeekData(allData) {
+            const today = new Date();
+            const weekStart = getWeekStart(today);
+            const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekEnd.getDate() + 6);
+
+            const thisWeekData = [];
+
+            Object.keys(allData).forEach(dateStr => {
+                const date = new Date(dateStr);
+                if (date >= weekStart && date <= weekEnd) {
+                    thisWeekData.push(allData[dateStr]);
+                }
+            });
+
+            return thisWeekData;
+        }
+
         // Google Sheets Functions
         function checkSheetsConnection() {
             sheetsUrl = localStorage.getItem('sheetsUrl') || '';
@@ -1354,6 +1470,252 @@
                 }
                 setDailyReminder(); // Set up next reminder
             }, timeUntilReminder);
+        }
+
+        // History Tab Functions
+        function loadHistoryData() {
+            const allData = JSON.parse(localStorage.getItem('healthTrackerData') || '{}');
+            const historyContainer = document.getElementById('historyContent');
+
+            if (Object.keys(allData).length === 0) {
+                historyContainer.innerHTML = '<p>No historical data available. Start logging or import your data.</p>';
+                return;
+            }
+
+            // Group data by weeks
+            const weeklyData = groupDataByWeeks(allData);
+            
+            let historyHtml = '<div style="overflow-x: auto;"><table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
+            historyHtml += '<thead><tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">';
+            historyHtml += '<th style="padding: 12px; text-align: left; border: 1px solid #dee2e6;">Week</th>';
+            historyHtml += '<th style="padding: 12px; text-align: center; border: 1px solid #dee2e6;">Days Logged</th>';
+            historyHtml += '<th style="padding: 12px; text-align: center; border: 1px solid #dee2e6;">Food Intake</th>';
+            historyHtml += '<th style="padding: 12px; text-align: center; border: 1px solid #dee2e6;">Food Quality</th>';
+            historyHtml += '<th style="padding: 12px; text-align: center; border: 1px solid #dee2e6;">Habits</th>';
+            historyHtml += '<th style="padding: 12px; text-align: center; border: 1px solid #dee2e6;">Exercise</th>';
+            historyHtml += '<th style="padding: 12px; text-align: center; border: 1px solid #dee2e6;">Overall</th>';
+            historyHtml += '</tr></thead><tbody>';
+
+            weeklyData.forEach(week => {
+                historyHtml += '<tr style="border-bottom: 1px solid #dee2e6;">';
+                historyHtml += `<td style="padding: 12px; border: 1px solid #dee2e6; font-weight: 500;">${week.weekLabel}</td>`;
+                historyHtml += `<td style="padding: 12px; text-align: center; border: 1px solid #dee2e6;">${week.daysLogged}</td>`;
+                historyHtml += `<td style="padding: 12px; text-align: center; border: 1px solid #dee2e6; background: ${getScoreColor(week.avgIntake)};">${week.avgIntake}%</td>`;
+                historyHtml += `<td style="padding: 12px; text-align: center; border: 1px solid #dee2e6; background: ${getScoreColor(week.avgQuality)};">${week.avgQuality}%</td>`;
+                historyHtml += `<td style="padding: 12px; text-align: center; border: 1px solid #dee2e6; background: ${getScoreColor(week.avgHabits)};">${week.avgHabits}%</td>`;
+                historyHtml += `<td style="padding: 12px; text-align: center; border: 1px solid #dee2e6; background: ${getScoreColor(week.avgExercise)};">${week.avgExercise}%</td>`;
+                historyHtml += `<td style="padding: 12px; text-align: center; border: 1px solid #dee2e6; background: ${getScoreColor(week.avgOverall)}; font-weight: bold;">${week.avgOverall}%</td>`;
+                historyHtml += '</tr>';
+            });
+
+            historyHtml += '</tbody></table></div>';
+            historyContainer.innerHTML = historyHtml;
+        }
+
+        function groupDataByWeeks(allData) {
+            const weeks = {};
+            
+            Object.keys(allData).sort().forEach(dateStr => {
+                const date = new Date(dateStr);
+                const weekStart = getWeekStart(date);
+                const weekKey = weekStart.toISOString().split('T')[0];
+                
+                if (!weeks[weekKey]) {
+                    weeks[weekKey] = {
+                        weekStart: weekStart,
+                        data: []
+                    };
+                }
+                
+                weeks[weekKey].data.push(allData[dateStr]);
+            });
+
+            return Object.keys(weeks).sort().reverse().map(weekKey => {
+                const week = weeks[weekKey];
+                const weekEnd = new Date(week.weekStart);
+                weekEnd.setDate(weekEnd.getDate() + 6);
+                
+                const weekLabel = `${week.weekStart.toLocaleDateString('en-US', {month: 'short', day: 'numeric'})} - ${weekEnd.toLocaleDateString('en-US', {month: 'short', day: 'numeric'})}`;
+                
+                const scores = {
+                    intake: [],
+                    quality: [],
+                    habits: [],
+                    exercise: []
+                };
+
+                week.data.forEach(day => {
+                    if (day.scores.intake !== '-') scores.intake.push(parseFloat(day.scores.intake));
+                    if (day.scores.quality !== '-') scores.quality.push(parseFloat(day.scores.quality));
+                    if (day.scores.habits !== '-') scores.habits.push(parseFloat(day.scores.habits));
+                    if (day.scores.exercise !== '-') scores.exercise.push(parseFloat(day.scores.exercise));
+                });
+
+                return {
+                    weekLabel: weekLabel,
+                    daysLogged: week.data.length,
+                    avgIntake: scores.intake.length > 0 ? Math.round(scores.intake.reduce((a, b) => a + b) / scores.intake.length) : 0,
+                    avgQuality: scores.quality.length > 0 ? Math.round(scores.quality.reduce((a, b) => a + b) / scores.quality.length) : 0,
+                    avgHabits: scores.habits.length > 0 ? Math.round(scores.habits.reduce((a, b) => a + b) / scores.habits.length) : 0,
+                    avgExercise: scores.exercise.length > 0 ? Math.round(scores.exercise.reduce((a, b) => a + b) / scores.exercise.length) : 0,
+                    avgOverall: week.data.length > 0 ? Math.round((
+                        (scores.intake.length > 0 ? scores.intake.reduce((a, b) => a + b) / scores.intake.length : 0) +
+                        (scores.quality.length > 0 ? scores.quality.reduce((a, b) => a + b) / scores.quality.length : 0) +
+                        (scores.habits.length > 0 ? scores.habits.reduce((a, b) => a + b) / scores.habits.length : 0) +
+                        (scores.exercise.length > 0 ? scores.exercise.reduce((a, b) => a + b) / scores.exercise.length : 0)
+                    ) / 4) : 0
+                };
+            });
+        }
+
+        function getWeekStart(date) {
+            const d = new Date(date);
+            const day = d.getDay();
+            const diff = d.getDate() - day;
+            return new Date(d.setDate(diff));
+        }
+
+        function getScoreColor(score) {
+            if (score >= 80) return '#d4edda';
+            if (score >= 60) return '#fff3cd';
+            return '#f8d7da';
+        }
+
+        // Weight Chart Functions
+        function loadWeightChart() {
+            const allData = JSON.parse(localStorage.getItem('healthTrackerData') || '{}');
+            const weightData = [];
+            const labels = [];
+
+            // Extract weight data
+            Object.keys(allData).sort().forEach(dateStr => {
+                const data = allData[dateStr];
+                if (data.weight && data.weight !== '') {
+                    const weight = parseFloat(data.weight);
+                    if (!isNaN(weight)) {
+                        labels.push(new Date(dateStr).toLocaleDateString('en-US', {month: 'short', day: 'numeric'}));
+                        weightData.push(weight);
+                    }
+                }
+            });
+
+            if (weightData.length === 0) {
+                document.getElementById('weightStats').innerHTML = '<p>No weight data available. Start logging your daily weight!</p>';
+                return;
+            }
+
+            // Calculate statistics
+            const minWeight = Math.min(...weightData);
+            const maxWeight = Math.max(...weightData);
+            const currentWeight = weightData[weightData.length - 1];
+            const startWeight = weightData[0];
+            const weightChange = currentWeight - startWeight;
+
+            document.getElementById('weightStats').innerHTML = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
+                        <h4 style="margin-bottom: 5px; color: #6c757d;">Current</h4>
+                        <div style="font-size: 24px; font-weight: bold;">${currentWeight} lbs</div>
+                    </div>
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
+                        <h4 style="margin-bottom: 5px; color: #6c757d;">Change</h4>
+                        <div style="font-size: 24px; font-weight: bold; color: ${weightChange < 0 ? '#28a745' : weightChange > 0 ? '#dc3545' : '#6c757d'};">${weightChange > 0 ? '+' : ''}${weightChange.toFixed(1)} lbs</div>
+                    </div>
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
+                        <h4 style="margin-bottom: 5px; color: #6c757d;">Range</h4>
+                        <div style="font-size: 16px; font-weight: bold;">${minWeight} - ${maxWeight} lbs</div>
+                    </div>
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
+                        <h4 style="margin-bottom: 5px; color: #6c757d;">Data Points</h4>
+                        <div style="font-size: 24px; font-weight: bold;">${weightData.length}</div>
+                    </div>
+                </div>
+            `;
+
+            // Create simple line chart using Canvas
+            const canvas = document.getElementById('weightChart');
+            const ctx = canvas.getContext('2d');
+            
+            // Set canvas size
+            canvas.width = canvas.offsetWidth * 2; // For retina displays
+            canvas.height = 400 * 2;
+            ctx.scale(2, 2);
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Chart dimensions
+            const padding = 60;
+            const chartWidth = canvas.width / 2 - 2 * padding;
+            const chartHeight = canvas.height / 2 - 2 * padding;
+            
+            // Calculate scales
+            const minY = Math.floor(minWeight - 2);
+            const maxY = Math.ceil(maxWeight + 2);
+            const yRange = maxY - minY;
+            const xStep = chartWidth / (weightData.length - 1);
+            
+            // Draw grid lines
+            ctx.strokeStyle = '#e9ecef';
+            ctx.lineWidth = 1;
+            
+            // Horizontal grid lines
+            for (let i = 0; i <= 5; i++) {
+                const y = padding + (i / 5) * chartHeight;
+                ctx.beginPath();
+                ctx.moveTo(padding, y);
+                ctx.lineTo(padding + chartWidth, y);
+                ctx.stroke();
+                
+                // Y-axis labels
+                const value = maxY - (i / 5) * yRange;
+                ctx.fillStyle = '#6c757d';
+                ctx.font = '12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+                ctx.textAlign = 'right';
+                ctx.fillText(value.toFixed(0), padding - 10, y + 4);
+            }
+            
+            // Draw line
+            ctx.strokeStyle = '#007bff';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            
+            weightData.forEach((weight, index) => {
+                const x = padding + index * xStep;
+                const y = padding + chartHeight - ((weight - minY) / yRange) * chartHeight;
+                
+                if (index === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            
+            ctx.stroke();
+            
+            // Draw points
+            ctx.fillStyle = '#007bff';
+            weightData.forEach((weight, index) => {
+                const x = padding + index * xStep;
+                const y = padding + chartHeight - ((weight - minY) / yRange) * chartHeight;
+                
+                ctx.beginPath();
+                ctx.arc(x, y, 4, 0, 2 * Math.PI);
+                ctx.fill();
+            });
+            
+            // Draw X-axis labels (show every few labels to avoid crowding)
+            ctx.fillStyle = '#6c757d';
+            ctx.font = '11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+            ctx.textAlign = 'center';
+            
+            const labelStep = Math.max(1, Math.floor(labels.length / 8));
+            labels.forEach((label, index) => {
+                if (index % labelStep === 0 || index === labels.length - 1) {
+                    const x = padding + index * xStep;
+                    ctx.fillText(label, x, padding + chartHeight + 20);
+                }
+            });
         }
     </script>
 </body>
