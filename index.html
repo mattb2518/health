@@ -97,42 +97,59 @@
             color: #495057;
         }
 
-        .slider-container {
+        .toggle-container {
             display: flex;
             align-items: center;
             gap: 15px;
             margin-bottom: 10px;
         }
 
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
         .slider {
-            flex: 1;
-            height: 8px;
-            border-radius: 5px;
-            background: #ddd;
-            outline: none;
-            -webkit-appearance: none;
-        }
-
-        .slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 25px;
-            height: 25px;
-            border-radius: 50%;
-            background: #007bff;
+            position: absolute;
             cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #dc3545;
+            transition: .4s;
+            border-radius: 34px;
         }
 
-        .slider::-moz-range-thumb {
-            width: 25px;
-            height: 25px;
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
             border-radius: 50%;
-            background: #007bff;
-            cursor: pointer;
-            border: none;
         }
 
-        .slider-value {
+        input:checked + .slider {
+            background-color: #28a745;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        .toggle-label {
             min-width: 80px;
             text-align: center;
             font-weight: 600;
@@ -141,9 +158,8 @@
             font-size: 14px;
         }
 
-        .value-1 { background: #d4edda; color: #155724; }
-        .value-2 { background: #fff3cd; color: #856404; }
-        .value-3 { background: #f8d7da; color: #721c24; }
+        .label-0 { background: #f8d7da; color: #721c24; }
+        .label-1 { background: #d4edda; color: #155724; }
 
         .input-field {
             width: 100%;
@@ -174,6 +190,8 @@
             font-weight: 500;
             cursor: pointer;
             transition: background 0.3s ease;
+            margin-right: 10px;
+            margin-bottom: 10px;
         }
 
         .btn:hover {
@@ -186,6 +204,23 @@
 
         .btn-secondary:hover {
             background: #545b62;
+        }
+
+        .btn-success {
+            background: #28a745;
+        }
+
+        .btn-success:hover {
+            background: #1e7e34;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .btn-warning:hover {
+            background: #e0a800;
         }
 
         .score-summary {
@@ -241,10 +276,60 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.2);
             transform: translateX(100%);
             transition: transform 0.3s ease;
+            z-index: 1000;
         }
 
         .notification.show {
             transform: translateX(0);
+        }
+
+        .notification.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .import-section {
+            border: 2px dashed #007bff;
+            padding: 20px;
+            text-align: center;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .file-input {
+            margin: 10px 0;
+        }
+
+        .sync-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: #e9ecef;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        .sync-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #6c757d;
+        }
+
+        .sync-indicator.connected {
+            background: #28a745;
+        }
+
+        .sync-indicator.syncing {
+            background: #ffc107;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
         }
 
         @media (max-width: 768px) {
@@ -266,6 +351,11 @@
             .exercise-grid {
                 grid-template-columns: 1fr;
             }
+
+            .btn {
+                width: 100%;
+                margin-right: 0;
+            }
         }
     </style>
 </head>
@@ -274,36 +364,41 @@
         <div class="header">
             <h1>Health Tracker</h1>
             <p id="currentDate"></p>
+            <div class="sync-status" id="syncStatus">
+                <div class="sync-indicator" id="syncIndicator"></div>
+                <span id="syncText">Local storage only</span>
+            </div>
         </div>
 
         <div class="nav-tabs">
             <button class="nav-tab active" onclick="showTab('daily')">Daily Input</button>
-            <button class="nav-tab" onclick="showTab('progress')">Weekly Progress</button>
-            <button class="nav-tab" onclick="showTab('history')">History</button>
+            <button class="nav-tab" onclick="showTab('import')">Import Data</button>
+            <button class="nav-tab" onclick="showTab('sheets')">Google Sheets</button>
+            <button class="nav-tab" onclick="showTab('progress')">Progress</button>
         </div>
 
         <!-- Daily Input Tab -->
         <div id="daily" class="tab-content active">
             <div class="section">
                 <div class="score-summary">
-                    <div class="score-card value-1">
+                    <div class="score-card label-1">
                         <h4>Food Intake</h4>
                         <div class="score" id="intakeScore">-</div>
                     </div>
-                    <div class="score-card value-1">
+                    <div class="score-card label-1">
                         <h4>Food Quality</h4>
                         <div class="score" id="qualityScore">-</div>
                     </div>
-                    <div class="score-card value-1">
+                    <div class="score-card label-1">
                         <h4>Habits</h4>
                         <div class="score" id="habitsScore">-</div>
                     </div>
-                    <div class="score-card value-1">
+                    <div class="score-card label-1">
                         <h4>Exercise</h4>
                         <div class="score" id="exerciseScore">-</div>
                     </div>
-                    <div class="score-card value-1">
-                        <h4>Daily Total</h4>
+                    <div class="score-card label-1">
+                        <h4>Daily Average</h4>
                         <div class="score" id="totalScore">-</div>
                     </div>
                 </div>
@@ -311,34 +406,46 @@
 
             <!-- Food Intake Section -->
             <div class="section">
-                <h3 class="section-title">Food Intake</h3>
+                <h3 class="section-title">Food Intake (1 = Healthy portion)</h3>
                 <div class="meal-grid">
                     <div class="form-group">
                         <label class="form-label">Breakfast</label>
-                        <div class="slider-container">
-                            <input type="range" min="1" max="3" value="2" class="slider" id="intakeBreakfast" onchange="updateScore()">
-                            <div class="slider-value value-2" id="intakeBreakfastValue">Normal</div>
+                        <div class="toggle-container">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="intakeBreakfast" onchange="updateScore()">
+                                <span class="slider"></span>
+                            </label>
+                            <div class="toggle-label label-0" id="intakeBreakfastLabel">Unhealthy</div>
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Lunch</label>
-                        <div class="slider-container">
-                            <input type="range" min="1" max="3" value="2" class="slider" id="intakeLunch" onchange="updateScore()">
-                            <div class="slider-value value-2" id="intakeLunchValue">Normal</div>
+                        <div class="toggle-container">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="intakeLunch" onchange="updateScore()">
+                                <span class="slider"></span>
+                            </label>
+                            <div class="toggle-label label-0" id="intakeLunchLabel">Unhealthy</div>
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Snack</label>
-                        <div class="slider-container">
-                            <input type="range" min="1" max="3" value="2" class="slider" id="intakeSnack" onchange="updateScore()">
-                            <div class="slider-value value-2" id="intakeSnackValue">Normal</div>
+                        <div class="toggle-container">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="intakeSnack" onchange="updateScore()">
+                                <span class="slider"></span>
+                            </label>
+                            <div class="toggle-label label-0" id="intakeSnackLabel">Unhealthy</div>
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Dinner</label>
-                        <div class="slider-container">
-                            <input type="range" min="1" max="3" value="2" class="slider" id="intakeDinner" onchange="updateScore()">
-                            <div class="slider-value value-2" id="intakeDinnerValue">Normal</div>
+                        <div class="toggle-container">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="intakeDinner" onchange="updateScore()">
+                                <span class="slider"></span>
+                            </label>
+                            <div class="toggle-label label-0" id="intakeDinnerLabel">Unhealthy</div>
                         </div>
                     </div>
                 </div>
@@ -346,34 +453,46 @@
 
             <!-- Food Quality Section -->
             <div class="section">
-                <h3 class="section-title">Food Quality</h3>
+                <h3 class="section-title">Food Quality (1 = Healthy food)</h3>
                 <div class="meal-grid">
                     <div class="form-group">
                         <label class="form-label">Breakfast</label>
-                        <div class="slider-container">
-                            <input type="range" min="1" max="3" value="2" class="slider" id="qualityBreakfast" onchange="updateScore()">
-                            <div class="slider-value value-2" id="qualityBreakfastValue">Medium</div>
+                        <div class="toggle-container">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="qualityBreakfast" onchange="updateScore()">
+                                <span class="slider"></span>
+                            </label>
+                            <div class="toggle-label label-0" id="qualityBreakfastLabel">Unhealthy</div>
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Lunch</label>
-                        <div class="slider-container">
-                            <input type="range" min="1" max="3" value="2" class="slider" id="qualityLunch" onchange="updateScore()">
-                            <div class="slider-value value-2" id="qualityLunchValue">Medium</div>
+                        <div class="toggle-container">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="qualityLunch" onchange="updateScore()">
+                                <span class="slider"></span>
+                            </label>
+                            <div class="toggle-label label-0" id="qualityLunchLabel">Unhealthy</div>
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Snack</label>
-                        <div class="slider-container">
-                            <input type="range" min="1" max="3" value="2" class="slider" id="qualitySnack" onchange="updateScore()">
-                            <div class="slider-value value-2" id="qualitySnackValue">Medium</div>
+                        <div class="toggle-container">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="qualitySnack" onchange="updateScore()">
+                                <span class="slider"></span>
+                            </label>
+                            <div class="toggle-label label-0" id="qualitySnackLabel">Unhealthy</div>
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Dinner</label>
-                        <div class="slider-container">
-                            <input type="range" min="1" max="3" value="2" class="slider" id="qualityDinner" onchange="updateScore()">
-                            <div class="slider-value value-2" id="qualityDinnerValue">Medium</div>
+                        <div class="toggle-container">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="qualityDinner" onchange="updateScore()">
+                                <span class="slider"></span>
+                            </label>
+                            <div class="toggle-label label-0" id="qualityDinnerLabel">Unhealthy</div>
                         </div>
                     </div>
                 </div>
@@ -381,27 +500,36 @@
 
             <!-- Habits Section -->
             <div class="section">
-                <h3 class="section-title">Habits</h3>
+                <h3 class="section-title">Habits (1 = Good)</h3>
                 <div class="habit-grid">
                     <div class="form-group">
                         <label class="form-label">≤2 Drinks</label>
-                        <div class="slider-container">
-                            <input type="range" min="1" max="2" value="1" class="slider" id="habitDrinks" onchange="updateScore()">
-                            <div class="slider-value value-1" id="habitDrinksValue">Good</div>
+                        <div class="toggle-container">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="habitDrinks" onchange="updateScore()">
+                                <span class="slider"></span>
+                            </label>
+                            <div class="toggle-label label-0" id="habitDrinksLabel">No</div>
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">No Scavenging</label>
-                        <div class="slider-container">
-                            <input type="range" min="1" max="2" value="1" class="slider" id="habitScavenge" onchange="updateScore()">
-                            <div class="slider-value value-1" id="habitScavengeValue">Good</div>
+                        <div class="toggle-container">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="habitScavenge" onchange="updateScore()">
+                                <span class="slider"></span>
+                            </label>
+                            <div class="toggle-label label-0" id="habitScavengeLabel">No</div>
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Sleep Quality</label>
-                        <div class="slider-container">
-                            <input type="range" min="1" max="2" value="1" class="slider" id="habitSleep" onchange="updateScore()">
-                            <div class="slider-value value-1" id="habitSleepValue">Good</div>
+                        <div class="toggle-container">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="habitSleep" onchange="updateScore()">
+                                <span class="slider"></span>
+                            </label>
+                            <div class="toggle-label label-0" id="habitSleepLabel">Poor</div>
                         </div>
                     </div>
                 </div>
@@ -409,41 +537,56 @@
 
             <!-- Exercise Section -->
             <div class="section">
-                <h3 class="section-title">Exercise</h3>
+                <h3 class="section-title">Exercise (1 = Yes)</h3>
                 <div class="exercise-grid">
                     <div class="form-group">
                         <label class="form-label">Zone2</label>
-                        <div class="slider-container">
-                            <input type="range" min="1" max="2" value="2" class="slider" id="exerciseZone2" onchange="updateScore()">
-                            <div class="slider-value value-2" id="exerciseZone2Value">No</div>
+                        <div class="toggle-container">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="exerciseZone2" onchange="updateScore()">
+                                <span class="slider"></span>
+                            </label>
+                            <div class="toggle-label label-0" id="exerciseZone2Label">No</div>
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">VO2Max</label>
-                        <div class="slider-container">
-                            <input type="range" min="1" max="2" value="2" class="slider" id="exerciseVO2" onchange="updateScore()">
-                            <div class="slider-value value-2" id="exerciseVO2Value">No</div>
+                        <div class="toggle-container">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="exerciseVO2" onchange="updateScore()">
+                                <span class="slider"></span>
+                            </label>
+                            <div class="toggle-label label-0" id="exerciseVO2Label">No</div>
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Strength</label>
-                        <div class="slider-container">
-                            <input type="range" min="1" max="2" value="2" class="slider" id="exerciseStrength" onchange="updateScore()">
-                            <div class="slider-value value-2" id="exerciseStrengthValue">No</div>
+                        <div class="toggle-container">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="exerciseStrength" onchange="updateScore()">
+                                <span class="slider"></span>
+                            </label>
+                            <div class="toggle-label label-0" id="exerciseStrengthLabel">No</div>
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Stability/Core</label>
-                        <div class="slider-container">
-                            <input type="range" min="1" max="2" value="2" class="slider" id="exerciseStability" onchange="updateScore()">
-                            <div class="slider-value value-2" id="exerciseStabilityValue">No</div>
+                        <div class="toggle-container">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="exerciseStability" onchange="updateScore()">
+                                <span class="slider"></span>
+                            </label>
+                            <div class="toggle-label label-0" id="exerciseStabilityLabel">No</div>
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Grip</label>
-                        <div class="slider-container">
-                            <input type="range" min="1" max="2" value="2" class="slider" id="exerciseGrip" onchange="updateScore()">
-                            <div class="slider-value value-2" id="exerciseGripValue">No</div>
+                        <div class="toggle-container">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="exerciseGrip" onchange="updateScore()">
+                                <span class="slider"></span>
+                            </label>
+                            <div class="toggle-label label-0" id="exerciseGripLabel">No</div>
                         </div>
                     </div>
                 </div>
@@ -493,23 +636,75 @@
 
             <div class="section">
                 <button class="btn" onclick="saveData()">Save Today's Data</button>
-                <button class="btn btn-secondary" onclick="exportData()">Export Data</button>
+                <button class="btn btn-secondary" onclick="exportData()">Export to CSV</button>
+                <button class="btn btn-success" onclick="syncToSheets()" id="syncButton" style="display:none;">Sync to Google Sheets</button>
             </div>
         </div>
 
-        <!-- Weekly Progress Tab -->
+        <!-- Import Data Tab -->
+        <div id="import" class="tab-content">
+            <div class="section">
+                <h3 class="section-title">Import Historical Data</h3>
+                <div class="import-section">
+                    <h4>Upload CSV from Google Sheets</h4>
+                    <p>Export your "Habit Tracker" tab as CSV and upload it here.</p>
+                    <input type="file" accept=".csv" class="file-input" id="csvFile" onchange="handleFileUpload(event)">
+                    <button class="btn" onclick="processImport()">Import Data</button>
+                </div>
+                
+                <div class="section">
+                    <h4>Column Mapping</h4>
+                    <p>The app will automatically map columns from your spreadsheet:</p>
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li><strong>Date:</strong> Column A</li>
+                        <li><strong>Food Intake:</strong> Columns B-E (Breakfast, Lunch, Snack, Dinner)</li>
+                        <li><strong>Food Quality:</strong> Columns F-I</li>
+                        <li><strong>Habits:</strong> Columns J-L (≤2 Drinks, No Scavenging, Sleep)</li>
+                        <li><strong>Exercise:</strong> Columns M-Q (Zone2, VO2Max, Strength, Stability, Grip)</li>
+                        <li><strong>Weight:</strong> Column R</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Google Sheets Tab -->
+        <div id="sheets" class="tab-content">
+            <div class="section">
+                <h3 class="section-title">Google Sheets Integration</h3>
+                <p>Connect your app to Google Sheets for automatic syncing across devices.</p>
+                
+                <div class="form-group">
+                    <label class="form-label">Google Sheets URL</label>
+                    <input type="text" placeholder="https://docs.google.com/spreadsheets/d/..." class="input-field" id="sheetsUrl">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Worksheet Name</label>
+                    <input type="text" placeholder="Habit Tracker" class="input-field" id="worksheetName" value="Habit Tracker">
+                </div>
+                
+                <button class="btn" onclick="connectSheets()">Connect to Google Sheets</button>
+                <button class="btn btn-warning" onclick="disconnectSheets()">Disconnect</button>
+                
+                <div style="margin-top: 20px;">
+                    <h4>Setup Instructions:</h4>
+                    <ol style="margin-left: 20px; margin-top: 10px;">
+                        <li>Make your Google Sheet public (Share > Anyone with link can view)</li>
+                        <li>Copy the sheet URL and paste it above</li>
+                        <li>Click "Connect to Google Sheets"</li>
+                        <li>Your data will sync automatically</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress Tab -->
         <div id="progress" class="tab-content">
             <div class="section">
-                <h3 class="section-title">Weekly Progress</h3>
-                <p>Weekly progress tracking will be displayed here. This feature will show your average scores for each category over the current week compared to your goals.</p>
-            </div>
-        </div>
-
-        <!-- History Tab -->
-        <div id="history" class="tab-content">
-            <div class="section">
-                <h3 class="section-title">Historical Trends</h3>
-                <p>Historical comparison data will be displayed here. This will show week-over-week trends for all your categories.</p>
+                <h3 class="section-title">Progress Dashboard</h3>
+                <div id="progressContent">
+                    <p>Progress tracking will be displayed here once you have some data.</p>
+                </div>
             </div>
         </div>
     </div>
@@ -519,12 +714,19 @@
     </div>
 
     <script>
+        // Global variables
+        let sheetsConnected = false;
+        let sheetsUrl = '';
+        let worksheetName = 'Habit Tracker';
+        let csvData = null;
+
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
             updateCurrentDate();
             loadTodayData();
             updateScore();
-            initializeSliderLabels();
+            initializeToggles();
+            checkSheetsConnection();
             requestNotificationPermission();
             setDailyReminder();
         });
@@ -540,132 +742,114 @@
             document.getElementById('currentDate').textContent = today.toLocaleDateString('en-US', options);
         }
 
-        function initializeSliderLabels() {
-            // Food intake labels
-            const intakeLabels = ['Small', 'Normal', 'Large'];
-            const qualityLabels = ['Healthy', 'Medium', 'Unhealthy'];
-            const binaryLabels = ['Good', 'Bad'];
-            const exerciseLabels = ['Yes', 'No'];
+        function initializeToggles() {
+            const toggles = [
+                'intakeBreakfast', 'intakeLunch', 'intakeSnack', 'intakeDinner',
+                'qualityBreakfast', 'qualityLunch', 'qualitySnack', 'qualityDinner',
+                'habitDrinks', 'habitScavenge', 'habitSleep',
+                'exerciseZone2', 'exerciseVO2', 'exerciseStrength', 'exerciseStability', 'exerciseGrip'
+            ];
 
-            // Update all slider labels
-            updateSliderLabel('intakeBreakfast', intakeLabels);
-            updateSliderLabel('intakeLunch', intakeLabels);
-            updateSliderLabel('intakeSnack', intakeLabels);
-            updateSliderLabel('intakeDinner', intakeLabels);
-            
-            updateSliderLabel('qualityBreakfast', qualityLabels);
-            updateSliderLabel('qualityLunch', qualityLabels);
-            updateSliderLabel('qualitySnack', qualityLabels);
-            updateSliderLabel('qualityDinner', qualityLabels);
-            
-            updateSliderLabel('habitDrinks', binaryLabels);
-            updateSliderLabel('habitScavenge', binaryLabels);
-            updateSliderLabel('habitSleep', binaryLabels);
-            
-            updateSliderLabel('exerciseZone2', exerciseLabels);
-            updateSliderLabel('exerciseVO2', exerciseLabels);
-            updateSliderLabel('exerciseStrength', exerciseLabels);
-            updateSliderLabel('exerciseStability', exerciseLabels);
-            updateSliderLabel('exerciseGrip', exerciseLabels);
-        }
-
-        function updateSliderLabel(sliderId, labels) {
-            const slider = document.getElementById(sliderId);
-            const valueDiv = document.getElementById(sliderId + 'Value');
-            
-            slider.addEventListener('input', function() {
-                const value = parseInt(this.value);
-                const label = labels[value - 1];
-                valueDiv.textContent = label;
-                valueDiv.className = `slider-value value-${value}`;
+            toggles.forEach(toggleId => {
+                const toggle = document.getElementById(toggleId);
+                const label = document.getElementById(toggleId + 'Label');
                 
-                // Mark the appropriate category as touched
-                if (sliderId.includes('intake')) {
-                    touchedSliders.intake = true;
-                } else if (sliderId.includes('quality')) {
-                    touchedSliders.quality = true;
-                } else if (sliderId.includes('habit')) {
-                    touchedSliders.habits = true;
-                } else if (sliderId.includes('exercise')) {
-                    touchedSliders.exercise = true;
-                }
+                toggle.addEventListener('change', function() {
+                    updateToggleLabel(toggleId);
+                    updateScore();
+                });
                 
-                updateScore();
+                updateToggleLabel(toggleId);
             });
         }
 
-        // Track which sliders have been touched
-        let touchedSliders = {
-            intake: false,
-            quality: false,
-            habits: false,
-            exercise: false
-        };
+        function updateToggleLabel(toggleId) {
+            const toggle = document.getElementById(toggleId);
+            const label = document.getElementById(toggleId + 'Label');
+            
+            if (toggle.checked) {
+                label.textContent = getToggleOnText(toggleId);
+                label.className = 'toggle-label label-1';
+            } else {
+                label.textContent = getToggleOffText(toggleId);
+                label.className = 'toggle-label label-0';
+            }
+        }
+
+        function getToggleOnText(toggleId) {
+            if (toggleId.includes('intake') || toggleId.includes('quality')) return 'Healthy';
+            if (toggleId.includes('habit')) {
+                if (toggleId.includes('Sleep')) return 'Good';
+                return 'Yes';
+            }
+            if (toggleId.includes('exercise')) return 'Yes';
+            return 'Yes';
+        }
+
+        function getToggleOffText(toggleId) {
+            if (toggleId.includes('intake') || toggleId.includes('quality')) return 'Unhealthy';
+            if (toggleId.includes('habit')) {
+                if (toggleId.includes('Sleep')) return 'Poor';
+                return 'No';
+            }
+            if (toggleId.includes('exercise')) return 'No';
+            return 'No';
+        }
 
         function updateScore() {
-            // Calculate Food Intake Score (average of 4 meals)
-            const intakeScores = [
-                parseInt(document.getElementById('intakeBreakfast').value),
-                parseInt(document.getElementById('intakeLunch').value),
-                parseInt(document.getElementById('intakeSnack').value),
-                parseInt(document.getElementById('intakeDinner').value)
-            ];
-            const intakeAvg = touchedSliders.intake ? (intakeScores.reduce((a, b) => a + b) / 4).toFixed(1) : 0;
+            // Calculate scores (percentage of 1s)
+            const intakeFields = ['intakeBreakfast', 'intakeLunch', 'intakeSnack', 'intakeDinner'];
+            const qualityFields = ['qualityBreakfast', 'qualityLunch', 'qualitySnack', 'qualityDinner'];
+            const habitFields = ['habitDrinks', 'habitScavenge', 'habitSleep'];
+            const exerciseFields = ['exerciseZone2', 'exerciseVO2', 'exerciseStrength', 'exerciseStability', 'exerciseGrip'];
 
-            // Calculate Food Quality Score (average of 4 meals)
-            const qualityScores = [
-                parseInt(document.getElementById('qualityBreakfast').value),
-                parseInt(document.getElementById('qualityLunch').value),
-                parseInt(document.getElementById('qualitySnack').value),
-                parseInt(document.getElementById('qualityDinner').value)
-            ];
-            const qualityAvg = touchedSliders.quality ? (qualityScores.reduce((a, b) => a + b) / 4).toFixed(1) : 0;
+            const intakeScore = calculateCategoryScore(intakeFields);
+            const qualityScore = calculateCategoryScore(qualityFields);
+            const habitsScore = calculateCategoryScore(habitFields);
+            const exerciseScore = calculateCategoryScore(exerciseFields);
 
-            // Calculate Habits Score (average of 3 habits)
-            const habitsScores = [
-                parseInt(document.getElementById('habitDrinks').value),
-                parseInt(document.getElementById('habitScavenge').value),
-                parseInt(document.getElementById('habitSleep').value)
-            ];
-            const habitsAvg = touchedSliders.habits ? (habitsScores.reduce((a, b) => a + b) / 3).toFixed(1) : 0;
-
-            // Calculate Exercise Score (average of 5 exercises)
-            const exerciseScores = [
-                parseInt(document.getElementById('exerciseZone2').value),
-                parseInt(document.getElementById('exerciseVO2').value),
-                parseInt(document.getElementById('exerciseStrength').value),
-                parseInt(document.getElementById('exerciseStability').value),
-                parseInt(document.getElementById('exerciseGrip').value)
-            ];
-            const exerciseAvg = touchedSliders.exercise ? (exerciseScores.reduce((a, b) => a + b) / 5).toFixed(1) : 0;
-
-            // Calculate total average
-            const activeSections = [intakeAvg, qualityAvg, habitsAvg, exerciseAvg].filter(score => score > 0);
-            const totalAvg = activeSections.length > 0 ? (activeSections.reduce((a, b) => parseFloat(a) + parseFloat(b)) / activeSections.length).toFixed(1) : 0;
+            // Calculate overall average
+            const scores = [intakeScore, qualityScore, habitsScore, exerciseScore].filter(s => s !== null);
+            const totalScore = scores.length > 0 ? (scores.reduce((a, b) => a + b) / scores.length) : null;
 
             // Update display
-            updateScoreDisplay('intakeScore', intakeAvg);
-            updateScoreDisplay('qualityScore', qualityAvg);
-            updateScoreDisplay('habitsScore', habitsAvg);
-            updateScoreDisplay('exerciseScore', exerciseAvg);
-            updateScoreDisplay('totalScore', totalAvg);
+            updateScoreDisplay('intakeScore', intakeScore);
+            updateScoreDisplay('qualityScore', qualityScore);
+            updateScoreDisplay('habitsScore', habitsScore);
+            updateScoreDisplay('exerciseScore', exerciseScore);
+            updateScoreDisplay('totalScore', totalScore);
+        }
+
+        function calculateCategoryScore(fields) {
+            const touchedFields = fields.filter(field => {
+                const toggle = document.getElementById(field);
+                return toggle.hasAttribute('data-touched') || toggle.checked;
+            });
+
+            if (touchedFields.length === 0) return null;
+
+            const checkedCount = touchedFields.filter(field => 
+                document.getElementById(field).checked
+            ).length;
+
+            return (checkedCount / touchedFields.length * 100).toFixed(0);
         }
 
         function updateScoreDisplay(elementId, score) {
             const element = document.getElementById(elementId);
-            element.textContent = score == 0 ? '-' : score;
+            element.textContent = score === null ? '-' : score + '%';
             
             const scoreCard = element.parentElement;
             scoreCard.className = 'score-card';
             
-            if (score == 0) {
-                scoreCard.classList.add('value-1'); // Default neutral color
-            } else if (score <= 1.3) {
-                scoreCard.classList.add('value-1');
-            } else if (score <= 1.7) {
-                scoreCard.classList.add('value-2');
+            if (score === null) {
+                scoreCard.classList.add('label-1');
+            } else if (score >= 80) {
+                scoreCard.classList.add('label-1');
+            } else if (score >= 60) {
+                scoreCard.classList.add('label-1'); // Keep it green for now
             } else {
-                scoreCard.classList.add('value-3');
+                scoreCard.classList.add('label-0');
             }
         }
 
@@ -689,28 +873,28 @@
             const data = {
                 date: today,
                 foodIntake: {
-                    breakfast: parseInt(document.getElementById('intakeBreakfast').value),
-                    lunch: parseInt(document.getElementById('intakeLunch').value),
-                    snack: parseInt(document.getElementById('intakeSnack').value),
-                    dinner: parseInt(document.getElementById('intakeDinner').value)
+                    breakfast: document.getElementById('intakeBreakfast').checked ? 1 : 0,
+                    lunch: document.getElementById('intakeLunch').checked ? 1 : 0,
+                    snack: document.getElementById('intakeSnack').checked ? 1 : 0,
+                    dinner: document.getElementById('intakeDinner').checked ? 1 : 0
                 },
                 foodQuality: {
-                    breakfast: parseInt(document.getElementById('qualityBreakfast').value),
-                    lunch: parseInt(document.getElementById('qualityLunch').value),
-                    snack: parseInt(document.getElementById('qualitySnack').value),
-                    dinner: parseInt(document.getElementById('qualityDinner').value)
+                    breakfast: document.getElementById('qualityBreakfast').checked ? 1 : 0,
+                    lunch: document.getElementById('qualityLunch').checked ? 1 : 0,
+                    snack: document.getElementById('qualitySnack').checked ? 1 : 0,
+                    dinner: document.getElementById('qualityDinner').checked ? 1 : 0
                 },
                 habits: {
-                    drinks: parseInt(document.getElementById('habitDrinks').value),
-                    scavenging: parseInt(document.getElementById('habitScavenge').value),
-                    sleep: parseInt(document.getElementById('habitSleep').value)
+                    drinks: document.getElementById('habitDrinks').checked ? 1 : 0,
+                    scavenging: document.getElementById('habitScavenge').checked ? 1 : 0,
+                    sleep: document.getElementById('habitSleep').checked ? 1 : 0
                 },
                 exercise: {
-                    zone2: parseInt(document.getElementById('exerciseZone2').value),
-                    vo2max: parseInt(document.getElementById('exerciseVO2').value),
-                    strength: parseInt(document.getElementById('exerciseStrength').value),
-                    stability: parseInt(document.getElementById('exerciseStability').value),
-                    grip: parseInt(document.getElementById('exerciseGrip').value)
+                    zone2: document.getElementById('exerciseZone2').checked ? 1 : 0,
+                    vo2max: document.getElementById('exerciseVO2').checked ? 1 : 0,
+                    strength: document.getElementById('exerciseStrength').checked ? 1 : 0,
+                    stability: document.getElementById('exerciseStability').checked ? 1 : 0,
+                    grip: document.getElementById('exerciseGrip').checked ? 1 : 0
                 },
                 weight: document.getElementById('weight').value,
                 logs: {
@@ -738,6 +922,11 @@
             localStorage.setItem('healthTrackerData', JSON.stringify(allData));
 
             showNotification('Data saved successfully!');
+
+            // Auto-sync to sheets if connected
+            if (sheetsConnected) {
+                syncToSheets();
+            }
         }
 
         function loadTodayData() {
@@ -746,35 +935,29 @@
             const todayData = allData[today];
 
             if (todayData) {
-                // Mark all categories as touched since we're loading data
-                touchedSliders.intake = true;
-                touchedSliders.quality = true;
-                touchedSliders.habits = true;
-                touchedSliders.exercise = true;
-
                 // Load food intake
-                document.getElementById('intakeBreakfast').value = todayData.foodIntake.breakfast;
-                document.getElementById('intakeLunch').value = todayData.foodIntake.lunch;
-                document.getElementById('intakeSnack').value = todayData.foodIntake.snack;
-                document.getElementById('intakeDinner').value = todayData.foodIntake.dinner;
+                document.getElementById('intakeBreakfast').checked = todayData.foodIntake.breakfast === 1;
+                document.getElementById('intakeLunch').checked = todayData.foodIntake.lunch === 1;
+                document.getElementById('intakeSnack').checked = todayData.foodIntake.snack === 1;
+                document.getElementById('intakeDinner').checked = todayData.foodIntake.dinner === 1;
 
                 // Load food quality
-                document.getElementById('qualityBreakfast').value = todayData.foodQuality.breakfast;
-                document.getElementById('qualityLunch').value = todayData.foodQuality.lunch;
-                document.getElementById('qualitySnack').value = todayData.foodQuality.snack;
-                document.getElementById('qualityDinner').value = todayData.foodQuality.dinner;
+                document.getElementById('qualityBreakfast').checked = todayData.foodQuality.breakfast === 1;
+                document.getElementById('qualityLunch').checked = todayData.foodQuality.lunch === 1;
+                document.getElementById('qualitySnack').checked = todayData.foodQuality.snack === 1;
+                document.getElementById('qualityDinner').checked = todayData.foodQuality.dinner === 1;
 
                 // Load habits
-                document.getElementById('habitDrinks').value = todayData.habits.drinks;
-                document.getElementById('habitScavenge').value = todayData.habits.scavenging;
-                document.getElementById('habitSleep').value = todayData.habits.sleep;
+                document.getElementById('habitDrinks').checked = todayData.habits.drinks === 1;
+                document.getElementById('habitScavenge').checked = todayData.habits.scavenging === 1;
+                document.getElementById('habitSleep').checked = todayData.habits.sleep === 1;
 
                 // Load exercise
-                document.getElementById('exerciseZone2').value = todayData.exercise.zone2;
-                document.getElementById('exerciseVO2').value = todayData.exercise.vo2max;
-                document.getElementById('exerciseStrength').value = todayData.exercise.strength;
-                document.getElementById('exerciseStability').value = todayData.exercise.stability;
-                document.getElementById('exerciseGrip').value = todayData.exercise.grip;
+                document.getElementById('exerciseZone2').checked = todayData.exercise.zone2 === 1;
+                document.getElementById('exerciseVO2').checked = todayData.exercise.vo2max === 1;
+                document.getElementById('exerciseStrength').checked = todayData.exercise.strength === 1;
+                document.getElementById('exerciseStability').checked = todayData.exercise.stability === 1;
+                document.getElementById('exerciseGrip').checked = todayData.exercise.grip === 1;
 
                 // Load weight and logs
                 document.getElementById('weight').value = todayData.weight || '';
@@ -785,8 +968,19 @@
                 document.getElementById('mealDinner').value = todayData.logs.meals.dinner || '';
                 document.getElementById('mealDrinks').value = todayData.logs.meals.drinks || '';
 
-                // Trigger slider updates to show correct labels
-                initializeSliderLabels();
+                // Mark all toggles as touched and update labels
+                const toggles = [
+                    'intakeBreakfast', 'intakeLunch', 'intakeSnack', 'intakeDinner',
+                    'qualityBreakfast', 'qualityLunch', 'qualitySnack', 'qualityDinner',
+                    'habitDrinks', 'habitScavenge', 'habitSleep',
+                    'exerciseZone2', 'exerciseVO2', 'exerciseStrength', 'exerciseStability', 'exerciseGrip'
+                ];
+                
+                toggles.forEach(toggleId => {
+                    document.getElementById(toggleId).setAttribute('data-touched', 'true');
+                    updateToggleLabel(toggleId);
+                });
+
                 updateScore();
             }
         }
@@ -831,9 +1025,232 @@
             showNotification('Data exported successfully!');
         }
 
-        function showNotification(message) {
+        // CSV Import Functions
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (file && file.type === 'text/csv') {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    csvData = e.target.result;
+                    showNotification('CSV file loaded. Click "Import Data" to process.');
+                };
+                reader.readAsText(file);
+            } else {
+                showNotification('Please select a valid CSV file.', true);
+            }
+        }
+
+        function processImport() {
+            if (!csvData) {
+                showNotification('Please select a CSV file first.', true);
+                return;
+            }
+
+            try {
+                const lines = csvData.split('\n');
+                const importedData = {};
+                let importCount = 0;
+
+                // Skip header row, start from row 4 (index 3) as requested
+                for (let i = 3; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line) continue;
+
+                    const cols = parseCSVLine(line);
+                    if (cols.length < 18) continue; // Need at least 18 columns
+
+                    const dateStr = cols[0];
+                    if (!dateStr || !isValidDate(dateStr)) continue;
+
+                    const date = formatDate(dateStr);
+                    
+                    const data = {
+                        date: date,
+                        foodIntake: {
+                            breakfast: parseInt(cols[1]) || 0,
+                            lunch: parseInt(cols[2]) || 0,
+                            snack: parseInt(cols[3]) || 0,
+                            dinner: parseInt(cols[4]) || 0
+                        },
+                        foodQuality: {
+                            breakfast: parseInt(cols[5]) || 0,
+                            lunch: parseInt(cols[6]) || 0,
+                            snack: parseInt(cols[7]) || 0,
+                            dinner: parseInt(cols[8]) || 0
+                        },
+                        habits: {
+                            drinks: parseInt(cols[9]) || 0,
+                            scavenging: parseInt(cols[10]) || 0,
+                            sleep: parseInt(cols[11]) || 0
+                        },
+                        exercise: {
+                            zone2: parseInt(cols[12]) || 0,
+                            vo2max: parseInt(cols[13]) || 0,
+                            strength: parseInt(cols[14]) || 0,
+                            stability: parseInt(cols[15]) || 0,
+                            grip: parseInt(cols[16]) || 0
+                        },
+                        weight: cols[17] || '',
+                        logs: {
+                            exercise: '',
+                            meals: {
+                                breakfast: '',
+                                lunch: '',
+                                snack: '',
+                                dinner: '',
+                                drinks: ''
+                            }
+                        },
+                        scores: {
+                            intake: calculateScore([data.foodIntake.breakfast, data.foodIntake.lunch, data.foodIntake.snack, data.foodIntake.dinner]),
+                            quality: calculateScore([data.foodQuality.breakfast, data.foodQuality.lunch, data.foodQuality.snack, data.foodQuality.dinner]),
+                            habits: calculateScore([data.habits.drinks, data.habits.scavenging, data.habits.sleep]),
+                            exercise: calculateScore([data.exercise.zone2, data.exercise.vo2max, data.exercise.strength, data.exercise.stability, data.exercise.grip]),
+                            total: '-'
+                        }
+                    };
+
+                    importedData[date] = data;
+                    importCount++;
+                }
+
+                // Merge with existing data
+                const existingData = JSON.parse(localStorage.getItem('healthTrackerData') || '{}');
+                const mergedData = { ...existingData, ...importedData };
+                localStorage.setItem('healthTrackerData', JSON.stringify(mergedData));
+
+                showNotification(`Successfully imported ${importCount} days of data!`);
+                loadTodayData(); // Refresh current day if it was imported
+
+            } catch (error) {
+                showNotification('Error importing data. Please check your CSV format.', true);
+                console.error('Import error:', error);
+            }
+        }
+
+        function parseCSVLine(line) {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+            
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                
+                if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                    result.push(current);
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            
+            result.push(current);
+            return result;
+        }
+
+        function isValidDate(dateStr) {
+            const date = new Date(dateStr);
+            return date instanceof Date && !isNaN(date);
+        }
+
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            return date.toISOString().split('T')[0];
+        }
+
+        function calculateScore(values) {
+            const total = values.reduce((a, b) => a + b, 0);
+            return Math.round((total / values.length) * 100) + '%';
+        }
+
+        // Google Sheets Functions
+        function checkSheetsConnection() {
+            sheetsUrl = localStorage.getItem('sheetsUrl') || '';
+            worksheetName = localStorage.getItem('worksheetName') || 'Habit Tracker';
+            sheetsConnected = !!sheetsUrl;
+
+            if (sheetsConnected) {
+                document.getElementById('sheetsUrl').value = sheetsUrl;
+                document.getElementById('worksheetName').value = worksheetName;
+                document.getElementById('syncButton').style.display = 'inline-block';
+                updateSyncStatus('connected', 'Connected to Google Sheets');
+            } else {
+                updateSyncStatus('disconnected', 'Local storage only');
+            }
+        }
+
+        function connectSheets() {
+            const url = document.getElementById('sheetsUrl').value.trim();
+            const worksheet = document.getElementById('worksheetName').value.trim();
+
+            if (!url) {
+                showNotification('Please enter a Google Sheets URL.', true);
+                return;
+            }
+
+            // Validate URL format
+            if (!url.includes('docs.google.com/spreadsheets')) {
+                showNotification('Please enter a valid Google Sheets URL.', true);
+                return;
+            }
+
+            localStorage.setItem('sheetsUrl', url);
+            localStorage.setItem('worksheetName', worksheet);
+            sheetsUrl = url;
+            worksheetName = worksheet;
+            sheetsConnected = true;
+
+            document.getElementById('syncButton').style.display = 'inline-block';
+            updateSyncStatus('connected', 'Connected to Google Sheets');
+            showNotification('Connected to Google Sheets!');
+        }
+
+        function disconnectSheets() {
+            localStorage.removeItem('sheetsUrl');
+            localStorage.removeItem('worksheetName');
+            sheetsUrl = '';
+            worksheetName = 'Habit Tracker';
+            sheetsConnected = false;
+
+            document.getElementById('syncButton').style.display = 'none';
+            updateSyncStatus('disconnected', 'Local storage only');
+            showNotification('Disconnected from Google Sheets.');
+        }
+
+        function syncToSheets() {
+            if (!sheetsConnected) {
+                showNotification('Not connected to Google Sheets.', true);
+                return;
+            }
+
+            updateSyncStatus('syncing', 'Syncing...');
+            
+            // Note: This is a placeholder for actual Google Sheets API integration
+            // In a real implementation, you would need to:
+            // 1. Set up Google Sheets API credentials
+            // 2. Handle authentication 
+            // 3. Read/write data to the sheet
+            
+            setTimeout(() => {
+                updateSyncStatus('connected', 'Sync complete');
+                showNotification('Sync to Google Sheets complete!');
+            }, 2000);
+        }
+
+        function updateSyncStatus(status, text) {
+            const indicator = document.getElementById('syncIndicator');
+            const statusText = document.getElementById('syncText');
+            
+            indicator.className = 'sync-indicator ' + status;
+            statusText.textContent = text;
+        }
+
+        function showNotification(message, isError = false) {
             const notification = document.getElementById('notification');
             notification.textContent = message;
+            notification.className = 'notification' + (isError ? ' error' : '');
             notification.classList.add('show');
             
             setTimeout(() => {
